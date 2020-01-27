@@ -11,7 +11,7 @@ import requests
 import dhtmlparser
 from ebooklib import epub
 
-PROJECT_URL = ""  # TODO: add github url
+PROJECT_URL = "https://github.com/Bystroushaak/meaningness.com_epub_generator"
 
 
 logger = logging.getLogger("convertor")
