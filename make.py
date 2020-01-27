@@ -133,75 +133,89 @@ class MeaningnessEbook:
 
         body = dom.find("body")[0]
 
-        # self._remove_fluff_from_the_beginning(body)
-        # self._remove_fluff_from_the_end(body)
+        self.remove_fluff(body)
         self._inline_images(body)
 
         chapter = epub.EpubHtml(title=title, file_name=chapter_fn)
         chapter.content = body.getContent()
         self.book.add_chapter(chapter)
-    #
-    # def _remove_fluff_from_the_beginning(self, body):
-    #     while body.childs[0].getTagName() != "hr":
-    #         body.childs.pop(0)
-    #     body.childs.pop(0)
-    #
-    # def _remove_fluff_from_the_end(sefl, body):
-    #     look_for = ["Next episodes", "Next episode", "Last episode", "Relevant discussions"]
-    #
-    #     selected_phrase = ""
-    #     for phrase in look_for:
-    #         if body.find("h1", fn=lambda x: x.getContent() == phrase):
-    #             selected_phrase = phrase
-    #             break
-    #     else:
-    #         return
-    #
-    #     while body.childs[-1].getContent() != selected_phrase:
-    #         body.childs.pop()
-    #     body.childs.pop()
+
+    def remove_fluff(self, body):
+        empty = dhtmlparser.parseString("")
+
+        def replace(selector):
+            for el in selector:
+                el.replaceWith(empty)
+
+        replace(body.find("div", {"class": "nocontent"}))
+        replace(body.find("div", {"class": "tertiary-content-wrapper"}))
+        replace(body.find("div", {"class": "more-link"}))
+        replace(body.find("div", {"class": "view-content"}))
+        replace(body.find("div", {"class": "block-content content"}))
+        replace(body.find("div", {"class": "region region-content-aside"}))
+        replace(body.find("div", {"role": "search"}))
+        replace(body.find("div", fn=lambda x: "block-meaningness-navigation" in x.params.get("class", "")))
+        replace(body.find("header"))
+        replace(body.find("div", {"id": "tertiary-content-wrapper"}))
+        replace(body.find("nav", {"class": "clearfix"}))
+
+        return body.find("div", {"class": "node-content"})[0]
 
     def _inline_images(self, body):
         for img in body.find("img"):
-            epub_img = epub.EpubImage()
 
             src = img.params["src"]
 
             if src.startswith("../"):
                 src = src.replace("../", "")
 
-            if src.startswith("http://") or src.startswith("https://"):
-                digest = hashlib.sha256(src.encode("utf-8")).hexdigest()
-                digest_name = "{}.{}".format(digest, src.rsplit(".")[-1])
-                epub_img.file_name = os.path.join(self.tmp_path, digest_name)
-
-                if not os.path.exists(epub_img.file_name):
-                    logger.info("Downloading remote image %s", src)
-
-                    resp = requests.get(src)
-                    with open(epub_img.file_name, "wb") as f:
-                        f.write(resp.content)
-
-                logger.info("Remote image %s added as %s", src,
-                             epub_img.file_name)
-            else:
-                epub_img.file_name = os.path.basename(src)
-                image_path = os.path.join(self.html_root, src)
-
-                if not os.path.exists(image_path):
-                    logger.error("File %s doesn't exists, skipping!", image_path)
-                    continue
-
-                with open(image_path, "rb") as f:
-                    epub_img.content = f.read()
-
-                if "style" in img.params:
-                    del img.params["style"]
-
-                logger.info("Local image %s added", epub_img.file_name)
+            try:
+                if src.startswith("http://") or src.startswith("https://"):
+                    epub_img = self._inline_remote_image(src)
+                else:
+                    epub_img = self._inline_local_image(img, src)
+            except IOError:
+                continue
 
             self.book.add_image(epub_img)
             img.params["src"] = epub_img.file_name
+
+    def _inline_remote_image(self, src):
+        epub_img = epub.EpubImage()
+
+        digest = hashlib.sha256(src.encode("utf-8")).hexdigest()
+        digest_name = "{}.{}".format(digest, src.rsplit(".")[-1])
+        epub_img.file_name = os.path.join(self.tmp_path, digest_name)
+
+        if not os.path.exists(epub_img.file_name):
+            logger.info("Downloading remote image %s", src)
+
+            resp = requests.get(src)
+            with open(epub_img.file_name, "wb") as f:
+                f.write(resp.content)
+
+        logger.info("Remote image %s added as %s", src, epub_img.file_name)
+
+        return epub_img
+
+    def _inline_local_image(self, img, src):
+        epub_img = epub.EpubImage()
+        epub_img.file_name = os.path.basename(src)
+
+        image_path = os.path.join(self.html_root, src)
+        if not os.path.exists(image_path):
+            logger.error("File %s doesn't exists, skipping!", image_path)
+            raise IOError("Can't open %s" % image_path, image_path)
+
+        with open(image_path, "rb") as f:
+            epub_img.content = f.read()
+
+        if "style" in img.params:
+            del img.params["style"]
+
+        logger.info("Local image %s added", epub_img.file_name)
+
+        return epub_img
 
     def generate_ebook(self, path):
         return self.book.generate_ebook(path)
@@ -214,7 +228,7 @@ def put_ebook_together(html_path):
         os.mkdir(tmp_name)
 
     book = MeaningnessEbook(html_path, tmp_name)
-    book.generate_ebook('meanigness.epub')
+    book.generate_ebook('meaningness.epub')
 
 
 if __name__ == '__main__':
