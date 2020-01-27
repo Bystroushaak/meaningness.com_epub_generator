@@ -10,7 +10,7 @@ Install requirements:
 
 Run Makefile:
 
-    make html
+    make epub
 
 Optionally, you can also run the calibre conversion script to fix all kind of wrongness with the epub:
 

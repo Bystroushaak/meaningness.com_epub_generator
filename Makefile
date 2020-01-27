@@ -1,6 +1,6 @@
-.PHONY: html, download, clean
+.PHONY: epub, download, clean
 
-html: download
+epub: download
 	./make.py "meaningness.com"
 
 download:
