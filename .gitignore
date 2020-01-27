@@ -104,3 +104,4 @@ venv.bak/
 .mypy_cache/
 
 meaningness.com/*
+tmp_images/*
