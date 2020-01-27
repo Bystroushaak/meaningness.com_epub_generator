@@ -1,11 +1,9 @@
 #! /usr/bin/env python3
 import sys
-import shutil
 import logging
 import os.path
 import hashlib
 import argparse
-import tempfile
 
 import requests
 import dhtmlparser
@@ -32,6 +30,7 @@ class BookGenerator:
         self.book = epub.EpubBook()
         self.title = title
         self.chapters = []
+        self.toc = []
 
         self.book.set_title(self.title)
 
@@ -58,10 +57,13 @@ class BookGenerator:
         self.book.add_author(author)
 
     def _add_toc(self):
-        self.book.toc = (
-            (epub.Section(self.title),
-             self.chapters),
-        )
+        if self.toc:
+            self.book.toc = self.toc
+        else:
+            self.book.toc = (
+                (epub.Section(self.title),
+                 self.chapters),
+            )
 
         self.book.add_item(epub.EpubNcx())
         self.book.add_item(epub.EpubNav())
@@ -94,19 +96,18 @@ class MeaningnessEbook:
         self.book.add_metadata('DC', 'generator', '', {'name': 'generator',
                                                        'content': PROJECT_URL})
 
-        self.chapters_metadata = [
-            ('Environment and the programming language Self part.html',
-             'chap_01.xhtml'),
-        ]
-        self.chapters_metadata = list(self.parse_toc(html_root))
+        self.chapters_metadata = list(self.parse_book_contents(html_root))
 
-        logger.debug(self.chapters_metadata)
-
+        path_chapter_map = {}
         for article_path, chapter_fn in self.chapters_metadata:
-            self.convert_chapter(article_path, chapter_fn)
+            chapter = self.convert_chapter(article_path, chapter_fn)
+            self.book.add_chapter(chapter)
+            path_chapter_map[article_path] = chapter
 
-    def parse_toc(self, html_root):
-        logger.info("Parsing toc..")
+        self.book.toc = self.parse_toc(path_chapter_map)
+
+    def parse_book_contents(self, html_root):
+        logger.info("Parsing book contents..")
 
         with open(os.path.join(html_root, "index.html")) as f:
             index_html = f.read()
@@ -116,6 +117,30 @@ class MeaningnessEbook:
         for a_el in toc_dom.find("a"):
             href = a_el.params["href"]
             yield (href, href)
+
+    def parse_toc(self, path_chapter_map):
+        logger.info("Parsing TOC structure from index.html..")
+
+        with open(os.path.join(self.html_root, "index.html")) as f:
+            index_html = f.read()
+
+        index_dom = dhtmlparser.parseString(index_html)
+        toc_dom = index_dom.find("ul", {"class": "book-toc"})[0]
+
+        def process(toc_dom):
+            li_structure = []
+            for li in toc_dom.wfind("li").childs:
+                if li.params.get("class", "") == "book_toc_container":
+                    sub_chapters = process(li.find("ul")[0])
+                    last_li = li_structure.pop()
+                    li_structure.append([last_li, sub_chapters])
+                else:
+                    href = li.find("a")[0].params["href"]
+                    li_structure.append(path_chapter_map[href])
+
+            return li_structure
+
+        return process(toc_dom)
 
     def convert_chapter(self, article_path, chapter_fn, title=None):
         logger.info("Converting %s", article_path)
@@ -129,7 +154,7 @@ class MeaningnessEbook:
 
         if not title:
             title = dom.find("title")[0].getContent()
-            title = title.split("(")[-1].split(")")[0].capitalize()
+            title = title.replace(" | Meaningness", "", 1)
 
         body = dom.find("body")[0]
 
@@ -138,7 +163,8 @@ class MeaningnessEbook:
 
         chapter = epub.EpubHtml(title=title, file_name=chapter_fn)
         chapter.content = body.getContent()
-        self.book.add_chapter(chapter)
+
+        return chapter
 
     def remove_fluff(self, body):
         empty = dhtmlparser.parseString("")
