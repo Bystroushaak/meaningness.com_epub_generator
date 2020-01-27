@@ -5,7 +5,7 @@ epub: download
 
 download:
 	if [ ! -d "meaningness.com" ]; then \
-		wget -r -l 1 -k -p https://meaningness.com/; \
+		wget -r -l 1 -k -p -E https://meaningness.com/; \
 	fi
 
 clean:
