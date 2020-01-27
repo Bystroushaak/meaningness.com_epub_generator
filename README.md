@@ -8,9 +8,9 @@ Install requirements:
 
     pip3 install --user -r requirements.txt
 
-Run make script:
+Run Makefile:
 
-    ./make.py
+    make html
 
 Optionally, you can also run the calibre conversion script to fix all kind of wrongness with the epub:
 
