@@ -159,7 +159,7 @@ class MeaningnessEbook:
         body = dom.find("body")[0]
 
         self.remove_fluff(body)
-        self._inline_images(body)
+        self._inline_images(body, article_path)
 
         chapter = epub.EpubHtml(title=title, file_name=chapter_fn)
         chapter.content = body.getContent()
@@ -187,9 +187,8 @@ class MeaningnessEbook:
 
         return body.find("div", {"class": "node-content"})[0]
 
-    def _inline_images(self, body):
+    def _inline_images(self, body, article_path):
         for img in body.find("img"):
-
             src = img.params["src"]
 
             if src.startswith("../"):
@@ -204,7 +203,12 @@ class MeaningnessEbook:
                 continue
 
             self.book.add_image(epub_img)
-            img.params["src"] = epub_img.file_name
+
+            root = ""
+            if "/" in article_path:
+                root = "../"
+            img.params["src"] = root + epub_img.file_name
+
 
     def _inline_remote_image(self, src):
         epub_img = epub.EpubImage()
@@ -226,7 +230,7 @@ class MeaningnessEbook:
 
     def _inline_local_image(self, img, src):
         epub_img = epub.EpubImage()
-        epub_img.file_name = os.path.basename(src)
+        epub_img.file_name = src
 
         image_path = os.path.join(self.html_root, src)
         if not os.path.exists(image_path):
