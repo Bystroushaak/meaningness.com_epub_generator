@@ -14,4 +14,4 @@ Run Makefile:
 
 Optionally, you can also run the calibre conversion script to fix all kind of wrongness with the epub:
 
-    ebook-convert meaningness.epub meaningness_cleaned.epub
+    ebook-convert meaningness.epub meaningness_clean.epub
