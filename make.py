@@ -113,7 +113,7 @@ class MeaningnessEbook:
             index_html = f.read()
 
         index_dom = dhtmlparser.parseString(index_html)
-        toc_dom = index_dom.find("ul", {"class": "book-toc"})[0]
+        toc_dom = index_dom.find("nav", {"class": "book-tree"})[0]
         for a_el in toc_dom.find("a"):
             href = a_el.params["href"]
             yield (href, href)
@@ -125,12 +125,12 @@ class MeaningnessEbook:
             index_html = f.read()
 
         index_dom = dhtmlparser.parseString(index_html)
-        toc_dom = index_dom.find("ul", {"class": "book-toc"})[0]
+        toc_dom = index_dom.find("nav", {"class": "book-tree"})[0]
 
         def process(toc_dom):
             li_structure = []
             for li in toc_dom.wfind("li").childs:
-                if li.params.get("class", "") == "book_toc_container":
+                if li.params.get("class", "") == "":
                     sub_chapters = process(li.find("ul")[0])
                     last_li = li_structure.pop()
                     li_structure.append([last_li, sub_chapters])
@@ -180,12 +180,14 @@ class MeaningnessEbook:
         replace(body.find("div", {"class": "block-content content"}))
         replace(body.find("div", {"class": "region region-content-aside"}))
         replace(body.find("div", {"role": "search"}))
+        replace(body.find("div", {"class": "comment_bubble_wrapper"}))
         replace(body.find("div", fn=lambda x: "block-meaningness-navigation" in x.params.get("class", "")))
         replace(body.find("header"))
+        replace(body.find("footer"))
         replace(body.find("div", {"id": "tertiary-content-wrapper"}))
         replace(body.find("nav", {"class": "clearfix"}))
 
-        return body.find("div", {"class": "node-content"})[0]
+        return body.find("main")[0]
 
     def _inline_images(self, body, article_path):
         for img in body.find("img"):
